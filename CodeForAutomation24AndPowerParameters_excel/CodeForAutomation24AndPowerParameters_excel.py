@@ -15,6 +15,7 @@ from pptx import Presentation
 from pptx.util import Inches
 from docx import Document
 from docx.shared import Inches
+from openpyxl import load_workbook, Workbook
  
 # Path to the folder containing the CSV files
 # path = r"C:\Users\kamalesh.kb\CodeForAutomation\MAIN_FOLDER\MAR_21"
@@ -773,7 +774,75 @@ log_file = None
 km_file = None
  
 
-main_folder_path = r"C:\Users\kamalesh.kb\CodeForAutomation\MAIN_FOLDER\Automation_Dashboard_Batterywise\V4\D11_03_2024"
+
+main_folder_path = r"C:\Users\kamalesh.kb\CodeForAutomation\Automation_Issues\CodeForAutomation24AndPowerParameters_excel\MAIN_FOLDER\Automation_Dashboard_Batterywise\V4\D11_03_2024"
+
+def mergeExcel(main_folder_path):
+    def prepare_sheet_in_memory(file_path):
+        workbook = load_workbook(filename=file_path)
+        sheet = workbook.active
+        file_name = os.path.basename(file_path)
+        sheet.insert_rows(1)
+        sheet['A1'] = 'file name'
+        sheet['B1'] = file_name
+        return sheet, file_name
+
+    def sheet_to_dict(sheet):
+        data_dict = {}
+        for row in sheet.iter_rows(min_row=2, values_only=True):
+            key, *values = row
+            data_dict[key] = values
+        return data_dict
+
+    def merge_dicts(dict1, dict2):
+        for key, values in dict2.items():
+            if key in dict1:
+                # Assuming that values is a list of values
+                dict1[key].extend(values)
+            else:
+                dict1[key] = values
+        return dict1
+
+    def process_directory(directory):
+        merged_data = {}
+        file_names = []
+        for root, dirs, files in os.walk(directory):
+            for name in dirs:
+                if name.startswith("B3"):
+                    subdir_path = os.path.join(root, name)
+                    for file_name in os.listdir(subdir_path):
+                        if file_name.endswith(".xlsx"):
+                            file_path = os.path.join(subdir_path, file_name)
+                            sheet, extracted_file_name = prepare_sheet_in_memory(file_path)
+                            data_dict = sheet_to_dict(sheet)
+                            merged_data = merge_dicts(merged_data, data_dict)
+                            if extracted_file_name not in file_names:
+                                file_names.append(extracted_file_name)
+        return merged_data, file_names
+
+    def main(main_folder_path):
+        directory = main_folder_path
+        merged_data, file_names = process_directory(directory)
+
+        merged_workbook = Workbook()
+        merged_sheet = merged_workbook.active
+
+        # Use the extracted file names for headers
+        headers = ['File name'] + file_names
+        merged_sheet.append(headers)
+
+        if merged_data:
+            for key, values in merged_data.items():
+                merged_sheet.append([key] + values)
+        else:
+            print("No data found in merged_data")
+
+        merged_file_path = os.path.join(directory, 'merged_analysis.xlsx')
+        merged_workbook.save(filename=merged_file_path)
+        print("Merged Excel file is ready")
+
+    if __name__ == '__main__':
+        main(main_folder_path)
 
 for subfolder in os.listdir(main_folder_path):
     subfolder_path = os.path.join(main_folder_path, subfolder)
@@ -809,3 +878,9 @@ for subfolder in os.listdir(main_folder_path):
             capture_analysis_output(log_file, km_file, subfolder_path)
         else:
             print("Log file or KM file not found in subfolder:", subfolder)
+
+mergeExcel(main_folder_path)
+
+
+
+    
